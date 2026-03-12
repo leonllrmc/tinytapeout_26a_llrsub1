@@ -314,7 +314,8 @@ module color_chan(
                      
 
    // to reduce usage, could combine ALU and only decouple selection
-
+   // WARNING => was bad idea as X and Y have offset and div params => but could decouple them from interface
+   
    wire [1:0] alu_glob_out = (GLOBAL_ALUOP == 3'h0) ? (alu_1_out + alu_2_out) >> 3 : 
                      (GLOBAL_ALUOP == 3'h1) ? (alu_1_out - alu_2_out) >> 3 :
                      (GLOBAL_ALUOP == 3'h2) ? (alu_2_out - alu_1_out) >> 3 :
