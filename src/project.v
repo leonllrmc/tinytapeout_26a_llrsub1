@@ -129,7 +129,36 @@ module tt_um_vga_leonllrmc(
 
 
 
-  always @(posedge reg_wr) begin
+  always @(posedge reg_wr or negedge rst_n) begin
+   if(~rst_n) begin
+      R_X_SEL_2    <= 1'b0;
+      R_Y_SEL_2    <= 1'b0;
+      R_DIV_2      <= 1'b0;
+      R_X_SEL_1    <= 1'b0;
+      R_Y_SEL_1    <= 1'b0;
+      R_DIV_1      <= 1'b0;
+      R_ALU2OP     <= 3'h0;
+      R_ALU1OP     <= 3'h0;
+      G_X_SEL_2    <= 1'b0;
+      G_Y_SEL_2    <= 1'b0;
+      G_DIV_2      <= 1'b0;
+      G_X_SEL_1    <= 1'b0;
+      G_Y_SEL_1    <= 1'b0;
+      G_DIV_1      <= 1'b0;
+      G_ALU2OP     <= 3'h0;
+      G_ALU1OP     <= 3'h0;
+      B_X_SEL_2    <= 1'b0;
+      B_Y_SEL_2    <= 1'b0;
+      B_DIV_2      <= 1'b0;
+      B_X_SEL_1    <= 1'b0;
+      B_Y_SEL_1    <= 1'b0;
+      B_DIV_1      <= 1'b0;
+      B_ALU2OP     <= 3'h0;
+      B_ALU1OP     <= 3'h0;
+      TIMER_SEL    <= 1'b0;
+      TIMER_DIV    <= 3'h0;
+      GLOBAL_ALUOP <= 3'h0;
+   end else begin
       case (reg_addr)
          3'h0: begin
             if(reg_din[3]) begin
@@ -194,6 +223,7 @@ module tt_um_vga_leonllrmc(
             GLOBAL_ALUOP <= reg_din[2:0];
          end
       endcase
+   end
   end
 
   color_chan red_chan(
@@ -315,7 +345,7 @@ module color_chan(
 
    // to reduce usage, could combine ALU and only decouple selection
    // WARNING => was bad idea as X and Y have offset and div params => but could decouple them from interface
-   
+
    wire [1:0] alu_glob_out = (GLOBAL_ALUOP == 3'h0) ? (alu_1_out + alu_2_out) >> 3 : 
                      (GLOBAL_ALUOP == 3'h1) ? (alu_1_out - alu_2_out) >> 3 :
                      (GLOBAL_ALUOP == 3'h2) ? (alu_2_out - alu_1_out) >> 3 :
