@@ -289,24 +289,31 @@ module color_chan(
   wire [9:0] X_VAL_2 = ((X_SEL_2 ? pix_x : (pix_x - DISP_H_DIV2)) >> DIV_2);
   wire [9:0] Y_VAL_2 = ((Y_SEL_2 ? pix_y : (pix_y - DISP_V_DIV2)) >> DIV_2);
 
-  wire [3:0] alu_1_out = (ALU1OP == 3'h0) ? (X_VAL_1 + Y_VAL_1) >> 3 : 
-                      (ALU1OP == 3'h1) ? (X_VAL_1 - Y_VAL_1) >> 3 :
-                      (ALU1OP == 3'h2) ? (Y_VAL_1 - X_VAL_1) >> 3 :
-                      (ALU1OP == 3'h3) ? (X_VAL_1 * Y_VAL_1) >> 3 :
-                      (ALU1OP == 3'h4) ? ((X_VAL_1 * X_VAL_1) >> 3) + ((Y_VAL_1 * Y_VAL_1) >> 3) :
+  wire [3:0] ALU_ADD_RESULT = (X_VAL_1 + Y_VAL_1) >> 3;
+  wire [3:0] ALU_SUB1_RESULT = (X_VAL_1 - Y_VAL_1) >> 3;
+  wire [3:0] ALU_SUB2_RESULT = (Y_VAL_1 - X_VAL_1) >> 3;
+  wire [3:0] ALU_MUL_RESULT = (X_VAL_1 * Y_VAL_1) >> 3;
+  wire [3:0] ALU_PSEUDOPYT_RESULT = (((X_VAL_1 * X_VAL_1) >> 3) + ((Y_VAL_1 * Y_VAL_1) >> 3));
+
+  wire [3:0] alu_1_out = (ALU1OP == 3'h0) ? ALU_ADD_RESULT : 
+                      (ALU1OP == 3'h1) ? ALU_SUB1_RESULT:
+                      (ALU1OP == 3'h2) ? ALU_SUB2_RESULT :
+                      (ALU1OP == 3'h3) ? ALU_MUL_RESULT :
+                      (ALU1OP == 3'h4) ? ALU_PSEUDOPYT_RESULT :
                       (ALU1OP == 3'h5) ? X_VAL_1 >> 6 :
                       (ALU1OP == 3'h6) ? Y_VAL_1 >> 6 : {X_SEL_1, Y_SEL_2, DIV_2, 1'b0}; 
 
 
     // => could add "sub alu", controlled by 2nd channel X/Y SEL and div if timer is en
-   wire [3:0] alu_2_out = (ALU2OP == 3'h0) ? (X_VAL_2 + Y_VAL_2) >> 3 : 
-                     (ALU2OP == 3'h1) ? (X_VAL_2 - Y_VAL_2) >> 3 :
-                     (ALU2OP == 3'h2) ? (Y_VAL_2 - X_VAL_2) >> 3 :
-                     (ALU2OP == 3'h3) ? (X_VAL_2 * Y_VAL_2) >> 3 :
-                     (ALU2OP == 3'h4) ? ((X_VAL_2 * X_VAL_2) >> 3) + ((Y_VAL_2 * Y_VAL_2) >> 3) :
-                     (ALU2OP == 3'h5) ? X_VAL_2 >> 6 :
+   wire [3:0] alu_2_out = (ALU2OP == 3'h0) ? ALU_ADD_RESULT : 
+                      (ALU2OP == 3'h1) ? ALU_SUB1_RESULT:
+                      (ALU2OP == 3'h2) ? ALU_SUB2_RESULT :
+                      (ALU2OP == 3'h3) ? ALU_MUL_RESULT :
+                      (ALU2OP == 3'h4) ? ALU_PSEUDOPYT_RESULT :
                      (ALU2OP == 3'h6) ? Y_VAL_2 >> 6 : timer; 
                      
+
+   // to reduce usage, could combine ALU and only decouple selection
 
    wire [1:0] alu_glob_out = (GLOBAL_ALUOP == 3'h0) ? (alu_1_out + alu_2_out) >> 3 : 
                      (GLOBAL_ALUOP == 3'h1) ? (alu_1_out - alu_2_out) >> 3 :
