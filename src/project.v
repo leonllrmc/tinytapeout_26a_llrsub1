@@ -40,8 +40,8 @@ module tt_um_vga_leonllrmc(
   // Suppress unused signals warning
   wire _unused_ok = &{ena, uio_in};
 
-  reg [13:0] counter_hsync;
-  reg [13:0] counter_xin;
+  reg [15:0] counter_hsync;
+  reg [11:0] counter_xin;
 
   hvsync_generator hvsync_gen(
     .clk(clk),
@@ -71,7 +71,7 @@ module tt_um_vga_leonllrmc(
     end
   end
 
-    always @(posedge vsync, negedge rst_n) begin
+    always @(posedge hsync, negedge rst_n) begin
     if (~rst_n) begin
       counter_hsync <= 0;
     end else begin
@@ -94,7 +94,7 @@ module tt_um_vga_leonllrmc(
    // => maybe 2 => add timer to X/Y of masked channel
   */
 
-  wire [3:0] timer = (TIMER_SEL ? counter_hsync : counter_xin) >> TIMER_DIV;
+  wire [3:0] timer = (TIMER_SEL ? counter_hsync : counter_xin) >> (TIMER_DIV << TIMER_SEL);
 
   reg R_X_SEL_1;
   reg R_Y_SEL_1;
@@ -122,6 +122,8 @@ module tt_um_vga_leonllrmc(
   reg [2:0] B_ALU2OP;
 
   reg [2:0] GLOBAL_ALUOP;
+
+  reg [2:0] CHAN_TIMER_ADD_MSK;
 
   reg TIMER_SEL; // 0 => use hsync timer, 1 => use vsync timer
   reg [4:0] TIMER_DIV;
@@ -158,6 +160,7 @@ module tt_um_vga_leonllrmc(
       TIMER_SEL    <= 1'b0;
       TIMER_DIV    <= 3'h0;
       GLOBAL_ALUOP <= 3'h0;
+      CHAN_TIMER_ADD_MSK <= 3'h0;
    end else begin
       case (reg_addr)
          3'h0: begin
@@ -218,9 +221,14 @@ module tt_um_vga_leonllrmc(
          3'h6: begin
             TIMER_SEL <= reg_din[3];
             TIMER_DIV <= reg_din[2:0];
+            // timer might be a slight bit slow (at least when global add)
          end         
          3'h7: begin
-            GLOBAL_ALUOP <= reg_din[2:0];
+            if(reg_din[3]) begin
+               CHAN_TIMER_ADD_MSK <= reg_din[2:0];
+            end else begin
+               GLOBAL_ALUOP <= reg_din[2:0];
+            end
          end
       endcase
    end
@@ -241,6 +249,9 @@ module tt_um_vga_leonllrmc(
    .ALU1OP(R_ALU1OP),
    .ALU2OP(R_ALU2OP),
    .GLOBAL_ALUOP(GLOBAL_ALUOP),
+
+   .CHAN_TIMER_ADD_MSK(CHAN_TIMER_ADD_MSK),
+   .CHAN_MSK(3'b100),
    
    .chan_val(R_chan_out)
 );
@@ -261,6 +272,9 @@ color_chan green_chan(
    .ALU2OP(G_ALU2OP),
    .GLOBAL_ALUOP(GLOBAL_ALUOP),
    
+   .CHAN_TIMER_ADD_MSK(CHAN_TIMER_ADD_MSK),
+   .CHAN_MSK(3'b010),
+
    .chan_val(G_chan_out)
 );
 
@@ -279,6 +293,9 @@ color_chan blue_chan(
    .ALU1OP(B_ALU1OP),
    .ALU2OP(B_ALU2OP),
    .GLOBAL_ALUOP(GLOBAL_ALUOP),
+
+   .CHAN_TIMER_ADD_MSK(CHAN_TIMER_ADD_MSK),
+   .CHAN_MSK(3'b001),
 
    .chan_val(B_chan_out)
 );
@@ -304,12 +321,13 @@ module color_chan(
    input [2:0] ALU2OP,
    input [2:0] GLOBAL_ALUOP,
 
-
+   input [2:0] CHAN_MSK,
+   input [2:0] CHAN_TIMER_ADD_MSK,
 
    output [1:0] chan_val
 );
 
-   assign chan_val = alu_glob_out;
+   assign chan_val = alu_glob_out + ((CHAN_TIMER_ADD_MSK & CHAN_MSK) ? timer[1:0] : 0);
 
    localparam DISP_H_DIV2 = 640/2;
   localparam DISP_V_DIV2 = 480/2;
@@ -319,32 +337,39 @@ module color_chan(
   wire [9:0] X_VAL_2 = ((X_SEL_2 ? pix_x : (pix_x - DISP_H_DIV2)) >> DIV_2);
   wire [9:0] Y_VAL_2 = ((Y_SEL_2 ? pix_y : (pix_y - DISP_V_DIV2)) >> DIV_2);
 
-  wire [3:0] ALU_ADD_RESULT = (X_VAL_1 + Y_VAL_1) >> 3;
-  wire [3:0] ALU_SUB1_RESULT = (X_VAL_1 - Y_VAL_1) >> 3;
-  wire [3:0] ALU_SUB2_RESULT = (Y_VAL_1 - X_VAL_1) >> 3;
-  wire [3:0] ALU_MUL_RESULT = (X_VAL_1 * Y_VAL_1) >> 3;
-  wire [3:0] ALU_PSEUDOPYT_RESULT = (((X_VAL_1 * X_VAL_1) >> 3) + ((Y_VAL_1 * Y_VAL_1) >> 3));
+  wire [3:0] ALU_SUB1_RESULT1 = (X_VAL_1 - Y_VAL_1) >> 3;
+  wire [3:0] ALU_SUB1_RESULT2 = (X_VAL_2 - Y_VAL_2) >> 3;
+  wire [3:0] ALU_SUB2_RESULT1 = -ALU_SUB1_RESULT1;
+  wire [3:0] ALU_SUB2_RESULT2 = -ALU_SUB1_RESULT2;
+  
+  wire [3:0] ALU_MUL_RESULT1 = (X_VAL_1[7:1] * Y_VAL_1[7:1]) >> 3;
+  wire [3:0] ALU_MUL_RESULT2 = (X_VAL_2[7:1] * Y_VAL_2[7:1]) >> 3;
+  wire [3:0] ALU_PSEUDOPYT_RESULT1 = (((X_VAL_1[7:1] * X_VAL_1[7:1]) >> 3) + ((Y_VAL_1[7:1] * Y_VAL_1[7:1]) >> 3));
+  wire [3:0] ALU_PSEUDOPYT_RESULT2 = (((X_VAL_2[7:1] * X_VAL_2[7:1]) >> 3) + ((Y_VAL_2[7:1] * Y_VAL_2[7:1]) >> 3));
 
-  wire [3:0] alu_1_out = (ALU1OP == 3'h0) ? ALU_ADD_RESULT : 
-                      (ALU1OP == 3'h1) ? ALU_SUB1_RESULT:
-                      (ALU1OP == 3'h2) ? ALU_SUB2_RESULT :
-                      (ALU1OP == 3'h3) ? ALU_MUL_RESULT :
-                      (ALU1OP == 3'h4) ? ALU_PSEUDOPYT_RESULT :
+  wire [3:0] alu_1_out = (ALU1OP == 3'h0) ? (X_VAL_1 + Y_VAL_1) >> 3 : 
+                      (ALU1OP == 3'h1) ? ALU_SUB1_RESULT1:
+                      (ALU1OP == 3'h2) ? ALU_SUB2_RESULT1 :
+                      (ALU1OP == 3'h3) ? ALU_MUL_RESULT1 :
+                      (ALU1OP == 3'h4) ? ALU_PSEUDOPYT_RESULT1 :
                       (ALU1OP == 3'h5) ? X_VAL_1 >> 6 :
                       (ALU1OP == 3'h6) ? Y_VAL_1 >> 6 : {X_SEL_1, Y_SEL_2, DIV_2, 1'b0}; 
 
 
     // => could add "sub alu", controlled by 2nd channel X/Y SEL and div if timer is en
-   wire [3:0] alu_2_out = (ALU2OP == 3'h0) ? ALU_ADD_RESULT : 
-                      (ALU2OP == 3'h1) ? ALU_SUB1_RESULT:
-                      (ALU2OP == 3'h2) ? ALU_SUB2_RESULT :
-                      (ALU2OP == 3'h3) ? ALU_MUL_RESULT :
-                      (ALU2OP == 3'h4) ? ALU_PSEUDOPYT_RESULT :
+   wire [3:0] alu_2_out = (ALU2OP == 3'h0) ? (X_VAL_2 + Y_VAL_2) >> 3 : 
+                      (ALU2OP == 3'h1) ? ALU_SUB1_RESULT2:
+                      (ALU2OP == 3'h2) ? ALU_SUB2_RESULT2 :
+                      (ALU2OP == 3'h3) ? ALU_MUL_RESULT2 :
+                      (ALU2OP == 3'h4) ? ALU_PSEUDOPYT_RESULT2 :
+                      (ALU2OP == 3'h5) ? X_VAL_2 >> 6 :
                      (ALU2OP == 3'h6) ? Y_VAL_2 >> 6 : timer; 
                      
 
    // to reduce usage, could combine ALU and only decouple selection
    // WARNING => was bad idea as X and Y have offset and div params => but could decouple them from interface
+
+   // NOTE => could use global ALU second reg part to add timer to selected chan 
 
    wire [1:0] alu_glob_out = (GLOBAL_ALUOP == 3'h0) ? (alu_1_out + alu_2_out) >> 3 : 
                      (GLOBAL_ALUOP == 3'h1) ? (alu_1_out - alu_2_out) >> 3 :
@@ -352,6 +377,6 @@ module color_chan(
                      (GLOBAL_ALUOP == 3'h3) ? (alu_1_out * alu_2_out) >> 3 :
                      (GLOBAL_ALUOP == 3'h4) ? ((alu_1_out * alu_1_out) >> 3) + ((alu_2_out * alu_2_out) >> 3) :
                      (GLOBAL_ALUOP == 3'h5) ? (alu_1_out ^ alu_2_out) >> 2 :
-                     (GLOBAL_ALUOP == 3'h6) ? alu_2_out >> 2 : timer; 
+                     (GLOBAL_ALUOP == 3'h6) ? alu_1_out >> 2 : timer; 
   
 endmodule
