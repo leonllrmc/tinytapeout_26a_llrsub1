@@ -345,7 +345,6 @@ module color_chan(
   wire [3:0] ALU_MUL_RESULT1 = (X_VAL_1[7:1] * Y_VAL_1[7:1]) >> 3;
   wire [3:0] ALU_MUL_RESULT2 = (X_VAL_2[7:1] * Y_VAL_2[7:1]) >> 3;
   wire [3:0] ALU_PSEUDOPYT_RESULT1 = (((X_VAL_1[7:1] * X_VAL_1[7:1]) >> 3) + ((Y_VAL_1[7:1] * Y_VAL_1[7:1]) >> 3));
-  wire [3:0] ALU_PSEUDOPYT_RESULT2 = (((X_VAL_2[7:1] * X_VAL_2[7:1]) >> 3) + ((Y_VAL_2[7:1] * Y_VAL_2[7:1]) >> 3));
 
   wire [3:0] alu_1_out = (ALU1OP == 3'h0) ? (X_VAL_1 + Y_VAL_1) >> 3 : 
                       (ALU1OP == 3'h1) ? ALU_SUB1_RESULT1:
@@ -361,7 +360,7 @@ module color_chan(
                       (ALU2OP == 3'h1) ? ALU_SUB1_RESULT2:
                       (ALU2OP == 3'h2) ? ALU_SUB2_RESULT2 :
                       (ALU2OP == 3'h3) ? ALU_MUL_RESULT2 :
-                      (ALU2OP == 3'h4) ? ALU_PSEUDOPYT_RESULT2 :
+                      (ALU2OP == 3'h4) ? ALU_PSEUDOPYT_RESULT1 :
                       (ALU2OP == 3'h5) ? X_VAL_2 >> 6 :
                      (ALU2OP == 3'h6) ? Y_VAL_2 >> 6 : timer; 
                      
