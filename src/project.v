@@ -345,6 +345,7 @@ module color_chan(
   wire [1:0] ALU_MUL_RESULT1 = (X_VAL_1[7:1] * Y_VAL_1[7:1]) >> 3;
   wire [1:0] ALU_MUL_RESULT2 = (X_VAL_2[7:1] * Y_VAL_2[7:1]) >> 3;
   wire [1:0] ALU_PSEUDOPYT_RESULT1 = (((X_VAL_1[7:1] * X_VAL_1[7:1]) >> 3) + ((Y_VAL_1[7:1] * Y_VAL_1[7:1]) >> 3));
+  wire [1:0] ALU_PSEUDOPYT_RESULT2 = (((X_VAL_2[7:1] * X_VAL_2[7:1]) >> 3) + ((Y_VAL_2[7:1] * Y_VAL_2[7:1]) >> 3));
 
   wire [1:0] alu_1_out = (ALU1OP == 3'h0) ? (X_VAL_1 + Y_VAL_1) >> 3 : 
                       (ALU1OP == 3'h1) ? ALU_SUB1_RESULT1:
