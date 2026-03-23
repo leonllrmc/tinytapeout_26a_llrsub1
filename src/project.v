@@ -158,6 +158,12 @@ module tt_um_vga_leonllrmc(
    reg old2_reg_wr;
    reg old_reg_wr;
 
+   always @(posedge clk) begin
+      if(~rst_n) begin
+         UART_OR_PARN <= reg_wr; // switch to uart mode by putting WR=1 during RST    
+      end
+   end
+
   always @(posedge clk or negedge rst_n) begin
    if(~rst_n) begin
       R_X_SEL_2    <= 1'b0;
@@ -190,8 +196,6 @@ module tt_um_vga_leonllrmc(
       CHAN_TIMER_ADD_MSK <= 3'h0;
       old2_reg_wr <= 1'b0;
       old_reg_wr <= 1'b0;
-
-      UART_OR_PARN <= reg_wr; // switch to uart mode by putting WR=1 during RST
    end else begin
       old_reg_wr <= reg_wr;
       old2_reg_wr <= old_reg_wr;
