@@ -72,7 +72,6 @@ async def test_project(dut):
 
     exception_flag = False
     async def capture_line(framebuffer, offset):
-        global exception_flag
         for i in range(H_TOTAL):
             try:
                 hsync = int(dut.uo_out.value[7])
