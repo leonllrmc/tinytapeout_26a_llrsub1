@@ -120,7 +120,6 @@ module tt_um_vga_leonllrmc(
    // => maybe 2 => add timer to X/Y of masked channel
   */
 
-  wire [3:0] timer = (TIMER_SEL ? counter_hsync : counter_xin) >> (TIMER_DIV << TIMER_SEL);
 
   reg R_X_SEL_1;
   reg R_Y_SEL_1;
@@ -153,6 +152,9 @@ module tt_um_vga_leonllrmc(
 
   reg TIMER_SEL; // 0 => use hsync timer, 1 => use vsync timer
   reg [4:0] TIMER_DIV;
+
+  
+  wire [3:0] timer = (TIMER_SEL ? counter_hsync : counter_xin) >> (TIMER_DIV << TIMER_SEL);
 
 
    reg old2_reg_wr;
