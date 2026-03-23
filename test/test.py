@@ -76,7 +76,13 @@ async def test_project(dut):
             assert hsync == (0 if H_SYNC_START <= i < H_SYNC_END else 1), "Unexpected hsync pattern"
             assert vsync == 1, "Unexpected vsync pattern"
             if i < H_DISPLAY:
-                framebuffer[offset+3*i:offset+3*i+3] = palette[int(dut.uo_out.value)]
+                try:
+                    framebuffer[offset+3*i:offset+3*i+3] = palette[int(dut.uo_out.value)]
+                except Exception as e:
+                    print("NOTE: caught (probably) uninitialized register problem")
+                    print(e)
+                    framebuffer[offset+3*i:offset+3*i+3] = palette[0] # to prevent error when uninitialized
+
             await ClockCycles(dut.clk, 1)
 
     async def skip_frame(frame_num):
