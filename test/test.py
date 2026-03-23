@@ -70,20 +70,19 @@ async def test_project(dut):
             await ClockCycles(dut.clk, 1)
 
 
-    exception_flag = False
     async def capture_line(framebuffer, offset):
         for i in range(H_TOTAL):
             try:
                 hsync = int(dut.uo_out.value[7])
             except ValueError:
                 hsync = 0
-                exception_flag = True
+                print("NOTE: caught (probably) uninitialized register problem")
             
             try:
                 vsync = int(dut.uo_out.value[3])
             except ValueError:
                 vsync = 0
-                exception_flag = True
+                print("NOTE: caught (probably) uninitialized register problem")
 
             assert hsync == (0 if H_SYNC_START <= i < H_SYNC_END else 1), "Unexpected hsync pattern"
             assert vsync == 1, "Unexpected vsync pattern"
@@ -91,13 +90,8 @@ async def test_project(dut):
                 try:
                     framebuffer[offset+3*i:offset+3*i+3] = palette[int(dut.uo_out.value)]
                 except Exception as e:
-                    exception_flag = True
-                    framebuffer[offset+3*i:offset+3*i+3] = palette[0] # to prevent error when uninitialize
-            else:
-                if exception_flag:
                     print("NOTE: caught (probably) uninitialized register problem")
-                    exception_flag = False
-
+                    framebuffer[offset+3*i:offset+3*i+3] = palette[0] # to prevent error when uninitialize
 
             await ClockCycles(dut.clk, 1)
 
